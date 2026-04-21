@@ -18,6 +18,7 @@ router = APIRouter()
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png"}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
+
 def validate_image(file: UploadFile) -> None:
     ext = file.filename.split(".")[-1].lower()
     if ext not in ALLOWED_EXTENSIONS:
@@ -28,8 +29,42 @@ def validate_image(file: UploadFile) -> None:
     if file.size and file.size > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=400,
-            detail=f"Ukuran file terlalu besar. Maksimum: {MAX_FILE_SIZE/1024/1024}MB"
+            detail=f"Ukuran file terlalu besar. Maksimum: {MAX_FILE_SIZE/1024/1024:.0f}MB"
         )
+
+
+async def process_single_image(
+    file: UploadFile,
+    current_user: dict,
+    db: AsyncSession
+) -> ClassificationResult:
+    """Helper internal — proses satu gambar tanpa commit."""
+    validate_image(file)
+    contents = await file.read()
+    label, confidence, processing_time = await inference_service.predict(contents)
+
+    image_url = None
+    if confidence > 0.8:
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        object_name = f"classifications/{current_user['user_id']}/{timestamp}_{file.filename}"
+        temp_path = f"/tmp/{uuid.uuid4()}_{file.filename}"
+
+        async with aiofiles.open(temp_path, "wb") as f:
+            await f.write(contents)
+
+        image_url = await minio_client.upload_file(temp_path, object_name, file.content_type)
+        os.remove(temp_path)
+
+    result = ClassificationResult(
+        user_id=current_user["user_id"],
+        label=label,
+        confidence=confidence,
+        image_url=image_url,
+        processing_time_ms=processing_time
+    )
+    db.add(result)
+    return result
+
 
 @router.post(
     "/classify",
@@ -41,33 +76,11 @@ async def classify_image(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    validate_image(file)
-    contents = await file.read()
-    label, confidence, processing_time = await inference_service.predict(contents)
-    
-    image_url = None
-    if confidence > 0.8:
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        object_name = f"classifications/{current_user['user_id']}/{timestamp}_{file.filename}"
-        temp_path = f"/tmp/{uuid.uuid4()}_{file.filename}"
-        
-        async with aiofiles.open(temp_path, "wb") as f:
-            await f.write(contents)
-        
-        image_url = await minio_client.upload_file(temp_path, object_name, file.content_type)
-        os.remove(temp_path)
-    
-    result = ClassificationResult(
-        user_id=current_user["user_id"],
-        label=label,
-        confidence=confidence,
-        image_url=image_url,
-        processing_time_ms=processing_time
-    )
-    db.add(result)
+    result = await process_single_image(file, current_user, db)
     await db.commit()
     await db.refresh(result)
     return result
+
 
 @router.post(
     "/classify/batch",
@@ -81,14 +94,19 @@ async def classify_multiple_images(
 ):
     if len(files) > 10:
         raise HTTPException(status_code=400, detail="Maksimum 10 file per batch")
-    
+
     start_time = datetime.utcnow()
     results = []
-    
+
     for file in files:
-        result = await classify_image(file, current_user, db)
+        result = await process_single_image(file, current_user, db)
         results.append(result)
-    
+
+    # Satu commit untuk semua hasil batch
+    await db.commit()
+    for result in results:
+        await db.refresh(result)
+
     total_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
     return BatchClassificationResponse(
         total_count=len(results),
