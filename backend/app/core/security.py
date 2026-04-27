@@ -79,10 +79,11 @@ async def get_current_user(
 def check_permissions(*allowed_roles: str):
     async def permission_checker(
         current_user: dict = Security(get_current_user)
-    ) -> None:
+    ) -> dict:
         if current_user["role"] not in allowed_roles:
             raise HTTPException(
                 status_code=403,
                 detail="Anda tidak memiliki izin untuk mengakses resource ini"
             )
+        return current_user
     return permission_checker

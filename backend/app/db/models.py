@@ -43,7 +43,7 @@ class ClassificationResult(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('user.id'), index=True)
     waste_type_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey('wastetype.id'), nullable=True)
-    label: Mapped[str] = mapped_column(SQLEnum('recyclable', 'non-recyclable', name='waste_label'))
+    label: Mapped[str] = mapped_column(String(50))
     confidence: Mapped[float] = mapped_column(Float)
     image_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)

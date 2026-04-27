@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
@@ -63,14 +64,19 @@ app.add_middleware(
 )
 
 # Import router
-from .api.endpoints import auth, classification, stats, history
+from .api.endpoints import auth, classification, stats, history, admin
+import os
+
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Routing
 # Note: Temen lo harus nembak ke /auth/register atau /auth/login
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
-app.include_router(classification.router, prefix="/api", tags=["Classification"])
-app.include_router(stats.router, prefix="/api", tags=["Statistics"])
-app.include_router(history.router, prefix="/api", tags=["History"])
+app.include_router(classification.router, prefix="", tags=["Classification"])
+app.include_router(stats.router, prefix="", tags=["Statistics"])
+app.include_router(history.router, prefix="", tags=["History"])
+app.include_router(admin.router, prefix="/admin", tags=["Admin"])
 
 @app.get("/")
 async def root():
