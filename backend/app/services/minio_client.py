@@ -17,7 +17,7 @@ class MinioClient:
             secure=False
         )
         self.bucket_name = settings.MINIO_BUCKET_NAME
-        self._ensure_bucket_exists()
+        # self._ensure_bucket_exists()
     
     def _ensure_bucket_exists(self):
         try:

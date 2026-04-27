@@ -1,115 +1,40 @@
 import uuid
 from typing import List
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-import aiofiles
+from fastapi import APIRouter, File, UploadFile, HTTPException
 import os
-from datetime import datetime
 
-from ...db.session import get_db
-from ...db.models import ClassificationResult
-from ...schemas.classification import ClassificationResponse, BatchClassificationResponse
-from ...core.security import get_current_user, check_permissions
+# Import service inti saja, jangan import model DB dulu karena lagi error
 from ...services.inference import inference_service
-from ...services.minio_client import minio_client
 
 router = APIRouter()
 
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png"}
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
-
 
 def validate_image(file: UploadFile) -> None:
     ext = file.filename.split(".")[-1].lower()
     if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Format file tidak didukung. Gunakan: {', '.join(ALLOWED_EXTENSIONS)}"
-        )
-    if file.size and file.size > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Ukuran file terlalu besar. Maksimum: {MAX_FILE_SIZE/1024/1024:.0f}MB"
-        )
+        raise HTTPException(status_code=400, detail="Format tidak didukung")
 
+@router.post("/classify")
+async def classify_image(file: UploadFile = File(...)):
+    try:
+        validate_image(file)
+        contents = await file.read()
 
-async def process_single_image(
-    file: UploadFile,
-    current_user: dict,
-    db: AsyncSession
-) -> ClassificationResult:
-    """Helper internal — proses satu gambar tanpa commit."""
-    validate_image(file)
-    contents = await file.read()
-    label, confidence, processing_time = await inference_service.predict(contents)
+        # Panggil AI YOLO lo
+        label, confidence, processing_time, detections_data = await inference_service.predict(contents)
 
-    image_url = None
-    if confidence > 0.8:
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        object_name = f"classifications/{current_user['user_id']}/{timestamp}_{file.filename}"
-        temp_path = f"/tmp/{uuid.uuid4()}_{file.filename}"
-
-        async with aiofiles.open(temp_path, "wb") as f:
-            await f.write(contents)
-
-        image_url = await minio_client.upload_file(temp_path, object_name, file.content_type)
-        os.remove(temp_path)
-
-    result = ClassificationResult(
-        user_id=current_user["user_id"],
-        label=label,
-        confidence=confidence,
-        image_url=image_url,
-        processing_time_ms=processing_time
-    )
-    db.add(result)
-    return result
-
-
-@router.post(
-    "/classify",
-    response_model=ClassificationResponse,
-    dependencies=[Depends(check_permissions("admin", "supervisor", "operator"))]
-)
-async def classify_image(
-    file: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    result = await process_single_image(file, current_user, db)
-    await db.commit()
-    await db.refresh(result)
-    return result
-
-
-@router.post(
-    "/classify/batch",
-    response_model=BatchClassificationResponse,
-    dependencies=[Depends(check_permissions("admin", "supervisor"))]
-)
-async def classify_multiple_images(
-    files: List[UploadFile] = File(...),
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    if len(files) > 10:
-        raise HTTPException(status_code=400, detail="Maksimum 10 file per batch")
-
-    start_time = datetime.utcnow()
-    results = []
-
-    for file in files:
-        result = await process_single_image(file, current_user, db)
-        results.append(result)
-
-    # Satu commit untuk semua hasil batch
-    await db.commit()
-    for result in results:
-        await db.refresh(result)
-
-    total_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
-    return BatchClassificationResponse(
-        total_count=len(results),
-        processing_time_ms=total_time,
-        results=results
-    )
+        # Susun response manual (Tanpa simpan ke Database)
+        return {
+            "status": "success",
+            "data": {
+                "id": str(uuid.uuid4()),
+                "label": label,
+                "confidence": float(confidence),
+                "processing_time_ms": processing_time,
+                "detections": detections_data
+            }
+        }
+    except Exception as e:
+        # Biar ketahuan kalau AI-nya yang error
+        return {"status": "error", "message": str(e)}

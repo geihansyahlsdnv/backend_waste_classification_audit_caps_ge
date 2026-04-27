@@ -1,14 +1,16 @@
 from pydantic import BaseModel
 from datetime import datetime
 from uuid import UUID
-from typing import Optional
+from typing import Optional, List
 
-class ClassificationCreate(BaseModel):
-    """Skema untuk request klasifikasi"""
-    pass  # Tidak perlu fields karena menggunakan form data untuk upload file
+class DetectionSchema(BaseModel):
+    label: str
+    confidence: float
+    box_2d: Optional[str] = None
+    class Config:
+        from_attributes = True
 
 class ClassificationResponse(BaseModel):
-    """Skema untuk response hasil klasifikasi"""
     id: UUID
     user_id: UUID
     label: str
@@ -16,12 +18,12 @@ class ClassificationResponse(BaseModel):
     timestamp: datetime
     image_url: Optional[str] = None
     processing_time_ms: int
+    detections: List[DetectionSchema] = [] # Data rich buat laporan
 
     class Config:
         from_attributes = True
 
 class BatchClassificationResponse(BaseModel):
-    """Skema untuk response multiple klasifikasi"""
     total_count: int
     processing_time_ms: int
-    results: list[ClassificationResponse]
+    results: List[ClassificationResponse]

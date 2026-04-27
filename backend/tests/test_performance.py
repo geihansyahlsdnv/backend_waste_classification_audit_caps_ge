@@ -17,7 +17,7 @@ async def test_classification_performance(
     
     async def make_request():
         start_time = time.time()
-        response = client.post(
+        response = await asyncio.to_thread(client.post,
             "/api/classify",
             files={"file": ("test.jpg", test_image, "image/jpeg")},
             headers={"Authorization": f"Bearer {test_token}"}
@@ -74,7 +74,7 @@ async def test_concurrent_users(
         results = []
         for _ in range(requests_per_user):
             start_time = time.time()
-            response = client.get(
+            response = await asyncio.to_thread(client.get,
                 "/api/stats/me",
                 headers={"Authorization": f"Bearer {test_token}"}
             )
