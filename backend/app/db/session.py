@@ -1,14 +1,13 @@
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session
-from sqlalchemy.pool import NullPool
 
 from ..core.config import settings
 from .base_class import Base
 
-# Create async engine
+# Create async engine optimized for PostgreSQL
 engine = create_async_engine(
     settings.DATABASE_URL,
-    poolclass=NullPool,
+    pool_pre_ping=True,
     echo=False
 )
 

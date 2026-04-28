@@ -3,7 +3,7 @@ import uuid
 from typing import Optional, List
 from decimal import Decimal
 from sqlalchemy import String, DateTime, Float, ForeignKey, Enum as SQLEnum, Numeric, Boolean
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base_class import Base
 
@@ -12,7 +12,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     email: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
-    role: Mapped[str] = mapped_column(SQLEnum('operator', 'admin', 'developer', 'supervisor', name='user_role'), default='operator')
+    role: Mapped[str] = mapped_column(SQLEnum('operator', 'admin', 'developer', 'supervisor', name='user_role', native_enum=True), default='operator')
     
     classifications: Mapped[List["ClassificationResult"]] = relationship("ClassificationResult", back_populates="user")
     price_updates: Mapped[List["PriceHistory"]] = relationship("PriceHistory", back_populates="updated_by_user")
@@ -20,7 +20,7 @@ class User(Base):
 class WasteType(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
-    category: Mapped[str] = mapped_column(SQLEnum('recyclable', 'non-recyclable', name='waste_category'))
+    category: Mapped[str] = mapped_column(SQLEnum('recyclable', 'non-recyclable', name='waste_category', native_enum=True))
     unit: Mapped[str] = mapped_column(String(20), default='kg')
     current_price: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), nullable=True)
     currency: Mapped[str] = mapped_column(String(3), default='IDR')
@@ -35,7 +35,7 @@ class Detection(Base):
     result_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('classificationresult.id'), index=True)
     label: Mapped[str] = mapped_column(String(50))
     confidence: Mapped[float] = mapped_column(Float)
-    box_2d: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    box_2d: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     
     result: Mapped["ClassificationResult"] = relationship("ClassificationResult", back_populates="detections")
 

@@ -63,7 +63,7 @@ async def get_audit_detail(
     import json
     response_detections = []
     for d in classification.detections:
-        box_coords = json.loads(d.box_2d) if d.box_2d else [0,0,0,0]
+        box_coords = d.box_2d if d.box_2d else [0,0,0,0]
         response_detections.append({
             "label": d.label,
             "confidence": d.confidence,

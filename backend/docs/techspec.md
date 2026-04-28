@@ -47,7 +47,7 @@ services:
       - "8000:8000"
     environment:
       # --- Koneksi Internal ---
-      DATABASE_URL: postgresql://user:password@db:5432/waste_db
+      DATABASE_URL: postgresql+asyncpg://user:password@db:5432/waste_db
       REDIS_HOST: redis
       MINIO_ENDPOINT: minio:9000
       # --- Konfigurasi ML/Model ---

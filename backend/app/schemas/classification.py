@@ -6,7 +6,7 @@ from typing import Optional, List
 class DetectionSchema(BaseModel):
     label: str
     confidence: float
-    box_2d: Optional[str] = None
+    box_2d: Optional[list] = None
     class Config:
         from_attributes = True
 

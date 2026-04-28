@@ -60,17 +60,17 @@ async def detect_image(
         
         response_detections = []
         for det in detections_data:
+            box_coords = json.loads(det["box_2d"]) if isinstance(det["box_2d"], str) else det["box_2d"]
             detection_id = uuid.uuid4()
             d = Detection(
                 id=detection_id,
                 result_id=audit_id,
                 label=det["label"],
                 confidence=det["confidence"],
-                box_2d=det["box_2d"]
+                box_2d=box_coords
             )
             db.add(d)
             
-            box_coords = json.loads(det["box_2d"])
             response_detections.append({
                 "label": det["label"],
                 "confidence": det["confidence"],

@@ -19,7 +19,7 @@ Buat file `.env` di root project dengan variabel berikut:
 
 ```env
 # Database
-DATABASE_URL=postgresql://user:password@db:5432/waste_db
+DATABASE_URL=postgresql+asyncpg://user:password@db:5432/waste_db
 
 # Redis
 REDIS_HOST=redis
