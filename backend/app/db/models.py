@@ -48,6 +48,10 @@ class ClassificationResult(Base):
     image_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     processing_time_ms: Mapped[Optional[int]] = mapped_column(nullable=True)
+    estimated_volume: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    actual_volume: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    volume_unit: Mapped[str] = mapped_column(String(20), default='kg')
+    estimated_price: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), nullable=True)
     
     user: Mapped["User"] = relationship("User", back_populates="classifications")
     waste_type: Mapped[Optional["WasteType"]] = relationship("WasteType", back_populates="classifications")
@@ -61,6 +65,7 @@ class PriceHistory(Base):
     new_price: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), nullable=True)
     updated_by_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('user.id'), index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     
     waste_type: Mapped["WasteType"] = relationship("WasteType", back_populates="price_history")
     updated_by_user: Mapped["User"] = relationship("User", back_populates="price_updates")

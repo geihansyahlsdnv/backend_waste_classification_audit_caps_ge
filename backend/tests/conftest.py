@@ -8,6 +8,9 @@ import os
 from datetime import datetime
 import uuid
 
+# Override DB before importing the app
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+
 from app.main import app
 from app.db.base_class import Base
 from app.db.session import get_db

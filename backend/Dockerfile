@@ -20,6 +20,7 @@ RUN pip install --upgrade pip setuptools wheel && \
 
 # Copy application code
 COPY ./app ./app
+COPY best.pt best.pt
 
 # Expose port
 EXPOSE 8000
