@@ -16,6 +16,8 @@ services:
       MODEL_WEIGHTS_PATH: http://minio:9000/models/yolov8s_final.pt
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
     depends_on:
       - db
       - redis

@@ -38,8 +38,8 @@ check_docker() {
     print_error "Docker is not installed. Please install Docker first."
     exit 1
   fi
-  if ! command -v docker-compose &> /dev/null; then
-    print_error "Docker Compose is not installed. Please install Docker Compose first."
+  if ! docker compose version &> /dev/null; then
+    print_error "Docker Compose v2 is not available. Please update Docker to a recent version."
     exit 1
   fi
   print_status "Docker and Docker Compose found"
@@ -110,7 +110,7 @@ start_services() {
   
   check_env
   
-  docker-compose -f "$COMPOSE_FILE" up -d
+  docker compose -f "$COMPOSE_FILE" up -d
   
   print_status "Services starting..."
   
@@ -118,11 +118,11 @@ start_services() {
   print_warning "Waiting for services to be healthy..."
   sleep 5
   
-  # Check health
+  # Check health via nginx on port 80 (port 8000 is internal only)
   max_attempts=30
   attempt=0
   while [ $attempt -lt $max_attempts ]; do
-    if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+    if curl -sf http://localhost/health > /dev/null 2>&1; then
       print_status "Backend is healthy"
       break
     fi
@@ -136,7 +136,7 @@ start_services() {
   done
   
   print_header "Deployment Summary"
-  docker-compose -f "$COMPOSE_FILE" ps
+  docker compose -f "$COMPOSE_FILE" ps
   
   echo ""
   echo "Service URLs:"
@@ -152,7 +152,7 @@ start_services() {
 stop_services() {
   print_header "Stopping Services"
   
-  docker-compose -f "$COMPOSE_FILE" down
+  docker compose -f "$COMPOSE_FILE" down
   
   print_status "Services stopped"
 }
@@ -161,11 +161,11 @@ stop_services() {
 restart_services() {
   print_header "Restarting Services"
   
-  docker-compose -f "$COMPOSE_FILE" restart
+  docker compose -f "$COMPOSE_FILE" restart
   
   sleep 3
   
-  if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+  if curl -sf http://localhost/health > /dev/null 2>&1; then
     print_status "Services restarted successfully"
   else
     print_error "Services may not be healthy"
@@ -178,9 +178,9 @@ show_logs() {
   
   # Show last 50 lines or follow
   if [ -z "$1" ]; then
-    docker-compose -f "$COMPOSE_FILE" logs --tail=50
+    docker compose -f "$COMPOSE_FILE" logs --tail=50
   else
-    docker-compose -f "$COMPOSE_FILE" logs -f
+    docker compose -f "$COMPOSE_FILE" logs -f
   fi
 }
 
@@ -188,7 +188,7 @@ show_logs() {
 show_status() {
   print_header "Service Status"
   
-  docker-compose -f "$COMPOSE_FILE" ps
+  docker compose -f "$COMPOSE_FILE" ps
   
   echo ""
   print_header "System Health"
@@ -201,7 +201,7 @@ show_status() {
   fi
   
   # Database check
-  if docker-compose -f "$COMPOSE_FILE" exec -T db psql -U waste_user -d waste_db -c "SELECT 1" > /dev/null 2>&1; then
+  if docker compose -f "$COMPOSE_FILE" exec -T db psql -U waste_user -d waste_db -c "SELECT 1" > /dev/null 2>&1; then
     print_status "Database is connected"
   else
     print_error "Database connection failed"
