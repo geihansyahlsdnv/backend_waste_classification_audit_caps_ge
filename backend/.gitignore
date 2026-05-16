@@ -53,3 +53,4 @@ minio_data/
 # Test coverage
 .coverage
 htmlcov/
+docs/
