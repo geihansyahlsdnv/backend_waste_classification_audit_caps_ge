@@ -54,3 +54,5 @@ minio_data/
 .coverage
 htmlcov/
 docs/
+ssl/
+docs/
