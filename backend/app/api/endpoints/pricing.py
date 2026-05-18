@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from uuid import UUID
 from datetime import datetime
 
@@ -86,13 +87,32 @@ async def get_price_history(
     skip: int = 0,
     limit: int = 100
 ):
-    histories = await db.scalars(
+    result = await db.execute(
         select(PriceHistory)
+        .options(
+            selectinload(PriceHistory.waste_type),
+            selectinload(PriceHistory.updated_by_user)
+        )
         .order_by(PriceHistory.updated_at.desc())
         .offset(skip)
         .limit(limit)
     )
-    return histories.all()
+    histories = result.scalars().all()
+
+    return [
+        {
+            "id": h.id,
+            "waste_type_id": h.waste_type_id,
+            "waste_type_name": h.waste_type.name if h.waste_type else "Unknown",
+            "old_price": h.old_price,
+            "new_price": h.new_price,
+            "updated_by_id": h.updated_by_id,
+            "updated_by_username": h.updated_by_user.username if h.updated_by_user else "Unknown",
+            "updated_at": h.updated_at,
+            "reason": h.reason,
+        }
+        for h in histories
+    ]
 
 
 @router.patch("/classification/{result_id}/volume", response_model=ClassificationWithPriceResponse)
