@@ -56,7 +56,9 @@ app.add_middleware(
         "http://127.0.0.1:3000",   # Loopback IP
         "http://localhost:5173",   # Vite default
         "http://localhost:8000",   # Docs testing
-        "https://hargai.site",     # Production domain
+        "https://hargai.site",
+        "https://app.hargai.site",
+        "http://app.hargai.site",     # Production domain
         "http://hargai.site",      # Production domain (http fallback)
     ], 
     allow_credentials=True,
