@@ -20,7 +20,7 @@ async def get_audits_history(
     query = select(ClassificationResult).options(selectinload(ClassificationResult.detections))
     filters = []
     
-    if current_user["role"] != "admin":
+    if True:  # All roles see only their own history; admins use /admin/audits for full view
         filters.append(ClassificationResult.user_id == current_user["user_id"])
         
     if filters: 
@@ -53,7 +53,7 @@ async def get_audit_detail(
     db: AsyncSession = Depends(get_db)
 ):
     query = select(ClassificationResult).options(selectinload(ClassificationResult.detections)).where(ClassificationResult.id == result_id)
-    if current_user["role"] != "admin":
+    if True:  # All roles see only their own history; admins use /admin/audits for full view
         query = query.where(ClassificationResult.user_id == current_user["user_id"])
     
     classification = await db.scalar(query)
