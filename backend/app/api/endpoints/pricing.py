@@ -57,7 +57,7 @@ async def create_waste_type(
 async def update_waste_type_price(
     waste_type_id: UUID,
     price_update: WasteTypePriceUpdate,
-    current_user: dict = Depends(check_permissions("operator")),
+    current_user: dict = Depends(check_permissions("supervisor", "admin")),
     db: AsyncSession = Depends(get_db)
 ):
     waste_type = await db.scalar(select(WasteType).where(WasteType.id == waste_type_id))
@@ -82,7 +82,7 @@ async def update_waste_type_price(
 
 @router.get("/price-history", response_model=list[PriceHistoryResponse])
 async def get_price_history(
-    current_user: dict = Depends(check_permissions("admin", "developer")),
+    current_user: dict = Depends(check_permissions("admin", "supervisor")),
     db: AsyncSession = Depends(get_db),
     skip: int = 0,
     limit: int = 100
@@ -119,14 +119,14 @@ async def get_price_history(
 async def update_classification_volume(
     result_id: UUID,
     volume_update: ClassificationVolumeUpdate,
-    current_user: dict = Depends(check_permissions("operator", "admin", "developer")),
+    current_user: dict = Depends(check_permissions("operator", "supervisor", "admin")),
     db: AsyncSession = Depends(get_db)
 ):
     classification = await db.scalar(select(ClassificationResult).where(ClassificationResult.id == result_id))
     if not classification:
         raise HTTPException(status_code=404, detail="Klasifikasi tidak ditemukan")
     
-    if current_user["user_id"] != classification.user_id and current_user["role"] not in ["admin", "developer"]:
+    if current_user["user_id"] != classification.user_id and current_user["role"] not in ["admin", "supervisor"]:
         raise HTTPException(status_code=403, detail="Tidak punya akses untuk edit hasil ini")
     
     classification.actual_volume = volume_update.actual_volume
@@ -163,14 +163,14 @@ async def update_classification_volume(
 @router.get("/classification/{result_id}", response_model=ClassificationWithPriceResponse)
 async def get_classification_detail(
     result_id: UUID,
-    current_user: dict = Depends(check_permissions("operator", "admin", "developer")),
+    current_user: dict = Depends(check_permissions("operator", "supervisor", "admin")),
     db: AsyncSession = Depends(get_db)
 ):
     classification = await db.scalar(select(ClassificationResult).where(ClassificationResult.id == result_id))
     if not classification:
         raise HTTPException(status_code=404, detail="Klasifikasi tidak ditemukan")
     
-    if current_user["user_id"] != classification.user_id and current_user["role"] not in ["admin", "developer"]:
+    if current_user["user_id"] != classification.user_id and current_user["role"] not in ["admin", "supervisor"]:
         raise HTTPException(status_code=403, detail="Tidak punya akses")
     
     await db.refresh(classification, ["waste_type"])

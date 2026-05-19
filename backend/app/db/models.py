@@ -6,17 +6,17 @@ from sqlalchemy import String, DateTime, Float, ForeignKey, Enum as SQLEnum, Num
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base_class import Base
-
+ 
 class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     username: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     email: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
-    role: Mapped[str] = mapped_column(SQLEnum('operator', 'admin', 'developer', 'supervisor', name='user_role', native_enum=True), default='operator')
+    role: Mapped[str] = mapped_column(SQLEnum('operator', 'supervisor', 'admin', name='user_role', native_enum=True), default='operator')
     
     classifications: Mapped[List["ClassificationResult"]] = relationship("ClassificationResult", back_populates="user")
     price_updates: Mapped[List["PriceHistory"]] = relationship("PriceHistory", back_populates="updated_by_user")
-
+ 
 class WasteType(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
@@ -29,7 +29,7 @@ class WasteType(Base):
     
     classifications: Mapped[List["ClassificationResult"]] = relationship("ClassificationResult", back_populates="waste_type")
     price_history: Mapped[List["PriceHistory"]] = relationship("PriceHistory", back_populates="waste_type")
-
+ 
 class Detection(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     result_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('classificationresult.id'), index=True)
@@ -38,7 +38,7 @@ class Detection(Base):
     box_2d: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     
     result: Mapped["ClassificationResult"] = relationship("ClassificationResult", back_populates="detections")
-
+ 
 class ClassificationResult(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('user.id'), index=True)
@@ -57,7 +57,7 @@ class ClassificationResult(Base):
     waste_type: Mapped[Optional["WasteType"]] = relationship("WasteType", back_populates="classifications")
     # Relasi ke detail objek (detections)
     detections: Mapped[List["Detection"]] = relationship("Detection", back_populates="result", cascade="all, delete-orphan")
-
+ 
 class PriceHistory(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     waste_type_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('wastetype.id'), index=True)

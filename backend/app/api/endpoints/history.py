@@ -82,3 +82,28 @@ async def get_audit_detail(
         "created_at": classification.timestamp.isoformat() + "Z",
         "detections": response_detections
     }
+
+
+@router.delete("/audits/{result_id}", status_code=200)
+async def delete_audit(
+    result_id: UUID,
+    current_user: dict = Depends(check_permissions("admin", "supervisor", "operator")),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete an audit. Operators and supervisors can only delete their own audits.
+    Admins can delete any audit.
+    """
+    classification = await db.scalar(
+        select(ClassificationResult).where(ClassificationResult.id == result_id)
+    )
+    if not classification:
+        raise HTTPException(status_code=404, detail="Audit tidak ditemukan")
+
+    if current_user["role"] != "admin" and classification.user_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Tidak punya akses untuk menghapus audit ini")
+
+    await db.delete(classification)
+    await db.commit()
+
+    return {"detail": "Audit berhasil dihapus", "audit_id": str(result_id)}

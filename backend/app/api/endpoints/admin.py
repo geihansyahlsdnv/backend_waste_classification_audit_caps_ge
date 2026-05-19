@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from uuid import UUID
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -8,6 +10,13 @@ from ...db.models import User, ClassificationResult
 from ...core.security import check_permissions
 
 router = APIRouter()
+
+ALLOWED_ROLES = {"operator", "supervisor", "admin"}
+
+
+class RoleUpdate(BaseModel):
+    role: str = Field(..., description="One of: operator, supervisor, admin")
+
 
 @router.get("/users")
 async def get_admin_users(
@@ -27,6 +36,66 @@ async def get_admin_users(
             "role": u.role
         })
     return response
+
+
+@router.patch("/users/{user_id}/role")
+async def update_user_role(
+    user_id: UUID,
+    role_update: RoleUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(check_permissions("admin"))
+):
+    if role_update.role not in ALLOWED_ROLES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Role tidak valid. Pilihan: {', '.join(sorted(ALLOWED_ROLES))}"
+        )
+
+    user = await db.scalar(select(User).where(User.id == user_id))
+    if not user:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan")
+
+    # Prevent admin from demoting themselves to avoid lockout
+    if str(user.id) == str(current_user["user_id"]) and role_update.role != "admin":
+        raise HTTPException(
+            status_code=400,
+            detail="Tidak dapat mengubah role admin sendiri"
+        )
+
+    user.role = role_update.role
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    return {
+        "id": str(user.id),
+        "name": user.username,
+        "email": user.email,
+        "role": user.role
+    }
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(check_permissions("admin"))
+):
+    user = await db.scalar(select(User).where(User.id == user_id))
+    if not user:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan")
+
+    if str(user.id) == str(current_user["user_id"]):
+        raise HTTPException(
+            status_code=400,
+            detail="Tidak dapat menghapus akun sendiri"
+        )
+
+    await db.delete(user)
+    await db.commit()
+
+    return {"detail": "User berhasil dihapus", "id": str(user_id)}
+
 
 @router.get("/audits")
 async def get_admin_audits(

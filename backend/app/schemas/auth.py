@@ -14,6 +14,14 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+class UserUpdate(BaseModel):
+    username: Optional[constr(min_length=3, max_length=50)] = None
+    email: Optional[EmailStr] = None
+
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: constr(min_length=8)
+
 class UserResponse(UserBase):
     id: UUID
     role: str
