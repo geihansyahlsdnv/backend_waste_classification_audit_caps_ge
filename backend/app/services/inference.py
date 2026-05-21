@@ -14,13 +14,13 @@ logger = logging.getLogger(__name__)
 # UPDATE this list confirms exact label order for model_2.tflite.
 # Order MUST match the training label order (index 0 = first class, etc).
 CLASS_NAMES: List[str] = [
-    "class_0",
-    "class_1",
-    "class_2",
-    "class_3",
-    "class_4",
-    "class_5",
-    "class_6",
+    "cardboard",
+    "compost",
+    "glass",
+    "metal",
+    "paper",
+    "plastic",
+    "trash",
 ]
 
 # Minimum confidence to accept a prediction. Below this → "tidak_dikenali"
