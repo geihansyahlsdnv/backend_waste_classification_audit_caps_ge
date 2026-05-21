@@ -2,7 +2,7 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install system dependencies for OpenCV & build tools
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
@@ -15,18 +15,15 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python packages in one go
+# Copy requirements and install Python packages
 COPY requirements.txt .
 RUN pip install --upgrade pip setuptools wheel && \
-    pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy application code and model
 COPY ./app ./app
-COPY best.pt best.pt
+COPY model_2.tflite model_2.tflite
 
-# Expose port
 EXPOSE 8000
 
-# Command to run the application
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

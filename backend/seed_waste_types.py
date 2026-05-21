@@ -1,20 +1,3 @@
-"""
-Seed script for the waste_type table.
-
-USAGE:
-    Run inside the backend container after ML dev confirms exact label names.
-    docker compose -f docker-compose.production.yml exec backend python seed_waste_types.py
-
-WHAT IT DOES:
-    Inserts waste_type rows for every YOLO class label, including default prices.
-    The 'name' field MUST match the exact label string the YOLO model returns
-    (case-insensitive comparison is used during /detect lookup).
-
-CUSTOMIZATION:
-    - Edit WASTE_TYPES below to match your model's class list
-    - Adjust prices to your market rates
-    - The script is idempotent: re-running it skips existing names
-"""
 import asyncio
 from decimal import Decimal
 
