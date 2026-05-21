@@ -81,6 +81,8 @@ async def delete_user(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(check_permissions("admin"))
 ):
+    from sqlalchemy import text
+
     user = await db.scalar(select(User).where(User.id == user_id))
     if not user:
         raise HTTPException(status_code=404, detail="User tidak ditemukan")
@@ -90,6 +92,34 @@ async def delete_user(
             status_code=400,
             detail="Tidak dapat menghapus akun sendiri"
         )
+
+    # Get or create _deleted_user via raw SQL (bypasses is_active ORM issue)
+    result = await db.execute(
+        text('SELECT id FROM "user" WHERE username = :username'),
+        {"username": "_deleted_user"}
+    )
+    row = result.fetchone()
+    if row:
+        deleted_user_id = row[0]
+    else:
+        await db.execute(
+            text("""
+                INSERT INTO "user" (id, username, email, hashed_password, role, is_active)
+                VALUES (gen_random_uuid(), '_deleted_user', 'deleted@system.local', 'disabled', 'operator', false)
+            """)
+        )
+        await db.commit()
+        result = await db.execute(
+            text('SELECT id FROM "user" WHERE username = :username'),
+            {"username": "_deleted_user"}
+        )
+        deleted_user_id = result.fetchone()[0]
+
+    # Anonymize their audits
+    await db.execute(
+        text('UPDATE classificationresult SET user_id = :deleted_id WHERE user_id = :user_id'),
+        {"deleted_id": deleted_user_id, "user_id": user.id}
+    )
 
     await db.delete(user)
     await db.commit()

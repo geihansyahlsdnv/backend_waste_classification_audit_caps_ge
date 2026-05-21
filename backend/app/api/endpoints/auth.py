@@ -28,23 +28,37 @@ DELETED_USER_USERNAME = "_deleted_user"
 DELETED_USER_EMAIL = "deleted@system.local"
 
 
-async def _get_or_create_deleted_user(db: AsyncSession) -> User:
-    """Return the system 'deleted_user' account, creating it if missing."""
-    deleted = await db.scalar(select(User).where(User.username == DELETED_USER_USERNAME))
-    if deleted:
-        return deleted
-
-    deleted = User(
-        username=DELETED_USER_USERNAME,
-        email=DELETED_USER_EMAIL,
-        hashed_password=get_password_hash("disabled-account-no-login"),
-        role="operator",
-        is_active=False,
+async def _get_deleted_user_id(db: AsyncSession):
+    """
+    Return the UUID of the system '_deleted_user' account using raw SQL.
+    Bypasses ORM to avoid the is_active column reflection issue.
+    Creates the account if it doesn't exist.
+    """
+    from sqlalchemy import text
+    result = await db.execute(
+        text("SELECT id FROM \"user\" WHERE username = :username"),
+        {"username": DELETED_USER_USERNAME}
     )
-    db.add(deleted)
+    row = result.fetchone()
+    if row:
+        return row[0]
+
+    # Create it via raw SQL
+    hashed = get_password_hash("disabled-account-no-login")
+    await db.execute(
+        text("""
+            INSERT INTO "user" (id, username, email, hashed_password, role, is_active)
+            VALUES (gen_random_uuid(), :username, :email, :hashed, 'operator', false)
+        """),
+        {"username": DELETED_USER_USERNAME, "email": DELETED_USER_EMAIL, "hashed": hashed}
+    )
     await db.commit()
-    await db.refresh(deleted)
-    return deleted
+
+    result = await db.execute(
+        text("SELECT id FROM \"user\" WHERE username = :username"),
+        {"username": DELETED_USER_USERNAME}
+    )
+    return result.fetchone()[0]
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -188,13 +202,13 @@ async def delete_current_user(
     if user.username == DELETED_USER_USERNAME:
         raise HTTPException(status_code=400, detail="Akun sistem tidak dapat dihapus")
 
-    deleted_user = await _get_or_create_deleted_user(db)
+    deleted_user_id = await _get_deleted_user_id(db)
 
-    # Reassign all classifications to the system account
+    # Reassign all classifications to the system account using raw SQL
+    from sqlalchemy import text
     await db.execute(
-        update(ClassificationResult)
-        .where(ClassificationResult.user_id == user.id)
-        .values(user_id=deleted_user.id)
+        text('UPDATE classificationresult SET user_id = :deleted_id WHERE user_id = :user_id'),
+        {"deleted_id": deleted_user_id, "user_id": user.id}
     )
 
     await db.delete(user)
